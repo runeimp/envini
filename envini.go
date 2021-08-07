@@ -26,6 +26,8 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
+var dataMap map[string]map[string]string
+
 func GetConfig(configPath string, config interface{}) {
 	log.Printf("EnvINI.GetConfig() | configPath: %q | config: %v\n", configPath, config)
 
@@ -39,83 +41,122 @@ func GetConfig(configPath string, config interface{}) {
 	}
 }
 
-func Unmarshal(data []byte, config interface{}) error {
+func stringIsTruthy(s string) bool {
+	s = strings.ToLower(s)
+	switch s {
+	case "true", "t", "yes", "y", "1":
+		return true
+	}
+	return false
+}
+
+func Unmarshal(data []byte, config interface{}) (err error) {
 	log.Printf("EnvINI.Unmarshal() | data: %q | config: %#v\n", data, config)
 
-	dataMap := bytesToDataMap(data)
+	dataMap = bytesToDataMap(data)
 	log.Printf("EnvINI.Unmarshal() | dataMap: %q\n", dataMap)
 
-	rv := reflect.ValueOf(config) // reflect.Value
-	// isPointer := rv.Kind() == reflect.Ptr
-	// log.Printf("EnvINI.Unmarshal() | rv.Kind(): %#v | isPointer: %t | rv.IsNil(): %t\n", rv.Kind(), isPointer, rv.IsNil())
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return &InvalidUnmarshalError{reflect.TypeOf(config)}
-	}
+	// err = walkStruct("GLOBAL", config)
+	err = walkerTexasRanger("GLOBAL", config)
+	log.Printf("EnvINI.Unmarshal() | config: %#v\n", config)
 
-	log.Printf("EnvINI.Unmarshal() | rv.IsValid(): %t\n", rv.IsValid())
+	// rv := reflect.ValueOf(config) // reflect.Value
+	// copy := reflect.New(rv.Type()).Elem()
+	// err = walkObject("GLOBAL", 0, copy, rv)
+	// if err != nil {
+	// 	log.Printf("EnvINI.Unmarshal() | err: %s\n", err.Error())
+	// } else {
+	// 	log.Println("EnvINI.Unmarshal() | err: nil")
+	// }
+	// log.Printf("EnvINI.Unmarshal() | rv: %#v\n", rv)
+	// log.Printf("EnvINI.Unmarshal() | copy: %#v\n", copy)
 
-	t := reflect.TypeOf(config).Elem() // Dereference the interface{} to a reflect.Value
-	// field, _ := t.FieldByName("ProjectName") //alternative
-	// log.Printf("EnvINI.Unmarshal() | ProjectName Field Tag: %q\n", field.Tag.Get("ini"))
+	return err
+}
 
-	// log.Printf("EnvINI.Unmarshal() | ini Field Tag: %q\n", field.Tag.Get("ini"))
-	// log.Printf("EnvINI.Unmarshal() | t.NumField(): %d\n", t.NumField())
+func walkerTexasRanger(section string, config interface{}) (err error) {
+	log.Printf("EnvINI.walkerTexasRanger() | -Call-  | section: %q\n", section)
+	reflectType := reflect.TypeOf(config).Elem()
+	reflectValue := reflect.ValueOf(config).Elem()
 
-	section := "GLOBAL"
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("ini")
-		// log.Printf("EnvINI.Unmarshal() | Config Field Tag: %q\n", field.Tag.Get("ini"))
-		// log.Printf("EnvINI.Unmarshal() | %d | field.Name: %v (%v) | field.Tag: %v | tag: %q\n", i, field.Name, field.Type.Name(), field.Tag, tag)
-		log.Printf("EnvINI.Unmarshal() | %d | field.Name: %s (%s) | tag: %q\n", i, field.Name, field.Type.Name(), tag)
-		if value, ok := dataMap[section][tag]; ok {
-			switch field.Type.Name() {
-			case "bool":
-				boolValue := false
-				value = strings.ToLower(value)
-				switch value {
-				case "true", "t", "yes", "y", "1":
-					boolValue = true
-				}
-				v := rv.Elem().FieldByName(field.Name)
+	for i := 0; i < reflectType.NumField(); i++ {
+		fieldName := reflectType.Field(i).Name     // Struct field name
+		tag := reflectType.Field(i).Tag.Get("ini") // Go struct tag value for the "ini" key
+		fieldType := reflectValue.Field(i).Type()  // Go value type
+		// fieldValue := reflectValue.Field(i).Interface() // Actual field value
+
+		log.Printf("EnvINI.walkerTexasRanger() | fieldName: %-12s | %-7s | tag: %s\n", fieldName, fieldType.Kind(), tag)
+
+		if fieldType.Kind() == reflect.Struct {
+			v := reflectValue.FieldByName(fieldName)
+			log.Printf("EnvINI.walkerTexasRanger() | Struct  | v.IsValid(): %t\n", v.IsValid())
+			if v.IsValid() {
+				vv := v.Interface()
+				err = walkerTexasRanger(fieldName, &vv)
+			}
+			section = tag
+			continue
+		}
+
+		if dataValue, ok := dataMap[section][tag]; ok || fieldName == "" && len(tag) > 0 {
+			// log.Printf("EnvINI.walkerTexasRanger() | field.Name: %q\n", field.Name)
+			v := reflectValue.FieldByName(fieldName)
+			// log.Printf("EnvINI.walkerTexasRanger() | fieldName: %-12s | fieldValue: %#-9v | dataValue: %#-9v | %-7s | v.IsValid(): %t\n", fieldName, fieldValue, dataValue, fieldType.Kind(), v.IsValid())
+			// log.Printf("EnvINI.walkerTexasRanger() | fieldName: %-12s | dataValue: %#-9v | %-7s | v.IsValid(): %t\n", fieldName, dataValue, fieldType.Kind(), v.IsValid())
+
+			switch fieldType.Kind() {
+			case reflect.Bool:
 				if v.IsValid() {
-					v.SetBool(boolValue)
+					v.SetBool(stringIsTruthy(dataValue))
 				}
-			case "int":
-				v := rv.Elem().FieldByName(field.Name)
+			case reflect.Float64:
 				if v.IsValid() {
-					intValue, err := strconv.ParseInt(value, 10, 64)
+					floatValue, err := strconv.ParseFloat(dataValue, 64)
+					if err == nil {
+						v.SetFloat(floatValue)
+					}
+				}
+			case reflect.Int:
+				if v.IsValid() {
+					intValue, err := strconv.ParseInt(dataValue, 10, 64)
 					if err == nil {
 						v.SetInt(intValue)
 					}
 				}
-			case "string":
-				v := rv.Elem().FieldByName(field.Name)
+			case reflect.String:
 				if v.IsValid() {
-					v.SetString(value)
+					v.SetString(dataValue)
+				}
+			case reflect.Struct:
+				log.Printf("EnvINI.walkerTexasRanger() | Struct  | v.IsValid(): %t\n", v.IsValid())
+				if v.IsValid() {
+					// v.SetString(dataValue)
+					err = walkerTexasRanger(fieldName, &v)
+				}
+			default: // struct
+				log.Printf("EnvINI.walkerTexasRanger() | DEFAULT | v.IsValid(): %t\n", v.IsValid())
+				if v.IsValid() {
+					// rv := reflect.ValueOf(v).Elem()
+					// vv := v.Interface()
+					// vv := v.Elem()
+					// err = walkerTexasRanger(fieldName, &vv)
 				}
 			}
 		}
+
+		// switch reflectValue.Field(i).Kind() {
+		// case reflect.String:
+		// 	log.Printf("EnvINI.walkerTexasRanger() | String  | %s: %q (%s) [%s]\n", fieldName, fieldValue, fieldType, tag)
+		// case reflect.Int32:
+		// 	log.Printf("EnvINI.walkerTexasRanger() | Int32   | %s: %i (%s) [%s]\n", fieldName, fieldValue, fieldType, tag)
+		// case reflect.Struct:
+		// 	log.Printf("EnvINI.walkerTexasRanger() | Struct  | %q is %s [%s]\n", fieldName, fieldType, tag)
+		// 	walkerTexasRanger(fieldName, reflectValue.Field(i).Addr().Interface())
+		// default:
+		// 	log.Printf("EnvINI.walkerTexasRanger() | Default | %s: %v (%s) [%s]\n", fieldName, fieldValue, fieldType, tag)
+		// }
 	}
-
-	// switch rv.Kind() {
-	// case reflect.Struct:
-	// 	log.Println("EnvINI.Unmarshal() | Struct")
-	// case reflect.Slice:
-	// 	log.Println("EnvINI.Unmarshal() | Slice")
-	// case reflect.Array:
-	// 	log.Println("EnvINI.Unmarshal() | Array")
-	// case reflect.Map:
-	// 	log.Println("EnvINI.Unmarshal() | Map")
-	// case reflect.Ptr:
-	// 	log.Println("EnvINI.Unmarshal() | Ptr")
-	// case reflect.Interface:
-	// 	log.Println("EnvINI.Unmarshal() | Interface")
-	// default:
-	// 	log.Printf("EnvINI.Unmarshal() | Unhandled Kind: %#v\n", rv.Kind())
-	// }
-
-	return nil
+	return err
 }
 
 func bytesToDataMap(data []byte) map[string]map[string]string {

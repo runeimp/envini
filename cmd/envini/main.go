@@ -8,28 +8,21 @@ import (
 
 const configPath = "./env.ini"
 
-// type Config struct {
-// 	BoolTest    bool   `ini:"bool_test"`
-// 	IntTest     int    `ini:"int_test"`
-// 	ProjectName string `ini:"project_name"`
-// 	// Section     struct {
-// 	// 	SectionText string `ini:"section_text"`
-// 	// } `ini:"section"`
-// }
-
 var config struct {
-	BoolTest    bool   `ini:"bool_test"`
-	IntTest     int    `ini:"int_test"`
-	ProjectName string `ini:"project_name"`
+	BoolTest    bool    `ini:"bool_test"`
+	LuckyAgent  float64 `ini:"lucky_agent"`
+	TheAnswer   int     `ini:"the_answer"`
+	ProjectName string  `ini:"project_name"`
 	Context     struct {
 		SectionText string `ini:"section_text"`
-	} `ini:"section"`
+	} `ini:"Context"`
 }
 
 func main() {
-	// config := Config{ProjectName: "Pheonix"}
 	envini.GetConfig(configPath, &config)
 	log.Printf("CmdEnvINI.main() | config.BoolTest: %t\n", config.BoolTest)
-	log.Printf("CmdEnvINI.main() | config.IntTest: %d\n", config.IntTest)
+	log.Printf("CmdEnvINI.main() | config.LuckyAgent: %.3f\n", config.LuckyAgent)
+	log.Printf("CmdEnvINI.main() | config.TheAnswer: %d\n", config.TheAnswer)
 	log.Printf("CmdEnvINI.main() | config.ProjectName: %q\n", config.ProjectName)
+	log.Printf("CmdEnvINI.main() | config.Context.SectionText: %q\n", config.Context.SectionText)
 }
