@@ -3,6 +3,8 @@ CLI_NAME := "envini"
 
 alias arc := archive
 
+set dotenv-load := false
+
 @_default:
 	just _term-wipe
 	just --list
@@ -53,8 +55,9 @@ distro:
 
 # Run code
 run +args='':
-	@just _term-wipe
-	go run ./cmd/envini/main.go {{args}}
+	#!/bin/sh
+	just _term-wipe
+	PROJECT_NAME=EnvINI go run ./cmd/envini/main.go {{args}}
 
 
 # Run a test

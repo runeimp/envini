@@ -9,21 +9,24 @@ import (
 const configPath = "./env.ini"
 
 var config struct {
-	BoolTest    bool   `ini:"bool_test"`
-	TrueBool    bool   `ini:"true_bool"`
-	ProjectName string `ini:"Project Name"`
+	BoolTest    bool   `ini:"bool_test" default:"false"`
+	TrueBool    bool   `ini:"true_bool" default:"true"`
+	ProjectName string `env:"PROJECT_NAME" ini:"Project Name"`
 	Context     struct {
-		SectionText string `ini:"section_text"`
+		SectionText string `ini:"section_text" default:"Quoth the Raven “Nevermore.”"`
 	} `ini:"Context"`
 	BookOfNumbers struct {
 		FloatTest  float32 `ini:"float_test"`
-		LuckyAgent float64 `ini:"lucky_agent"`
+		LuckyAgent float64 `ini:"lucky_agent" default:"12"`
 		TheAnswer  uint8   `ini:"the_answer"`
 	} `ini:"Book of Numbers"`
 }
 
 func main() {
-	envini.GetConfig(configPath, &config)
+	err := envini.GetConfig(configPath, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("CmdEnvINI.main() | config.BoolTest: %t\n", config.BoolTest)
 	log.Printf("CmdEnvINI.main() | config.TrueBool: %t\n", config.TrueBool)
 	log.Printf("CmdEnvINI.main() | config.ProjectName: %q\n", config.ProjectName)
