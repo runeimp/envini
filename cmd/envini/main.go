@@ -9,9 +9,9 @@ import (
 const configPath = "./env.ini"
 
 var config struct {
-	BoolTest    bool   `ini:"bool_test" default:"false"`
-	TrueBool    bool   `ini:"true_bool" default:"true"`
 	ProjectName string `env:"PROJECT_NAME" ini:"Project Name"`
+	SecondBool  bool   `ini:"second_bool" default:"false"`
+	TrueBool    bool   `ini:"true_bool" default:"true"`
 	Context     struct {
 		SectionText string `ini:"section_text" default:"Quoth the Raven “Nevermore.”"`
 	} `ini:"Context"`
@@ -27,9 +27,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("CmdEnvINI.main() | config.BoolTest: %t\n", config.BoolTest)
-	log.Printf("CmdEnvINI.main() | config.TrueBool: %t\n", config.TrueBool)
 	log.Printf("CmdEnvINI.main() | config.ProjectName: %q\n", config.ProjectName)
+	log.Printf("CmdEnvINI.main() | config.SecondBool: %t\n", config.SecondBool)
+	log.Printf("CmdEnvINI.main() | config.TrueBool: %t\n", config.TrueBool)
 	log.Printf("CmdEnvINI.main() | config.Context.SectionText: %q\n", config.Context.SectionText)
 	log.Printf("CmdEnvINI.main() | config.BookOfNumbers.FloatTest: %.3f\n", config.BookOfNumbers.FloatTest)
 	log.Printf("CmdEnvINI.main() | config.BookOfNumbers.LuckyAgent: %.3f\n", config.BookOfNumbers.LuckyAgent)

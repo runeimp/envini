@@ -30,7 +30,7 @@ func (e *InvalidUnmarshalError) Error() string {
 
 // var dataMap map[string]map[string]string
 var (
-	dataMap              inidata.DataMap
+	dataMap              *inidata.DataMap
 	ErrorValueUnsettable = errors.New("reflect.Value unsettable")
 	ErrorValueInvalid    = errors.New("reflect.Value invalid")
 )
@@ -58,7 +58,7 @@ func configWalker(section string, config interface{}) (err error) {
 		fieldType := reflectValue.Field(i).Type()             // Go value type
 		// fieldInterface := reflectValue.Field(i).Interface() // Actual field value
 
-		log.Printf("EnvINI.configWalker()  | fieldName: %-13q | Kind: %-7s | tagEnv: %-13q | tagINI: %q | tagDefault: %q\n", fieldName, fieldType.Kind(), tagEnv, tagINI, tagDefault)
+		log.Printf("EnvINI.configWalker()  | fieldName: %-13q | Kind: %-7s | tagEnv: %-14q | tagINI: %q | tagDefault: %q\n", fieldName, fieldType.Kind(), tagEnv, tagINI, tagDefault)
 
 		if fieldType.Kind() == reflect.Struct {
 			v := reflectValue.FieldByName(fieldName)
@@ -130,7 +130,7 @@ func reflectValueCheck(v reflect.Value) error {
 }
 
 func setFieldValue(v reflect.Value, fieldName, tagEnv, dataValue string) (err error) {
-	log.Printf("EnvINI.setFieldValue() | fieldName: %-13q | tagEnv: %q | dataValue: %q\n", fieldName, tagEnv, dataValue)
+	log.Printf("EnvINI.setFieldValue() | fieldName: %-13q | tagEnv: %-14q | dataValue: %q\n", fieldName, tagEnv, dataValue)
 	if len(tagEnv) > 0 {
 		env := os.Getenv(tagEnv)
 		if len(env) > 0 {
@@ -190,10 +190,11 @@ func Unmarshal(data []byte, config interface{}) (err error) {
 	dataMap = inidata.NewDataMap()
 	err = dataMap.ParseBytes(data)
 	if err != nil {
+		log.Printf("EnvINI.Unmarshal() | err: %s\n", err.Error())
 		return err
 	}
 
-	log.Printf("EnvINI.Unmarshal() | dataMap: %q\n", dataMap)
+	log.Printf("EnvINI.Unmarshal() | dataMap: %s\n", dataMap)
 
 	err = configWalker("GLOBAL", config)
 	log.Printf("EnvINI.Unmarshal() | configWalker() | err: %q\n", err)

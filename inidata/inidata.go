@@ -3,6 +3,7 @@ package inidata
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -20,7 +21,8 @@ type DataMap struct {
 	sections []string
 }
 
-func (dm DataMap) addKV(k, v string) {
+func (dm *DataMap) addKV(k, v string) {
+	// log.Printf("inidata.DataMap.addKV() | section: %q | k: %-18q | v: %v\n", dm.section, k, v)
 	if dm.data[dm.section] == nil {
 		dm.data[dm.section] = make(map[string]string)
 	}
@@ -29,7 +31,7 @@ func (dm DataMap) addKV(k, v string) {
 
 // GetKey accepts a key name and optional section name and returns the associated value for it.
 // The section defaults to GLOBAL if not included as the 2nd argument
-func (dm DataMap) GetKey(args ...string) (v string, ok bool) {
+func (dm *DataMap) GetKey(args ...string) (v string, ok bool) {
 	section := "GLOBAL"
 	key := ""
 	if len(args) > 0 {
@@ -49,7 +51,7 @@ func (dm DataMap) GetKey(args ...string) (v string, ok bool) {
 }
 
 // GetSections returns a slice of all the sections
-func (dm DataMap) GetSections() []string {
+func (dm *DataMap) GetSections() []string {
 	count := len(dm.sections)
 	if count == 0 || count < len(dm.data) {
 		dm.sections = []string{}
@@ -61,7 +63,7 @@ func (dm DataMap) GetSections() []string {
 }
 
 // ParseBytes takes a byte slice and parses it into data
-func (dm DataMap) ParseBytes(data []byte) error {
+func (dm *DataMap) ParseBytes(data []byte) error {
 	line := ""
 	lastC := '\n'
 	i := 0
@@ -126,7 +128,7 @@ func (dm DataMap) ParseBytes(data []byte) error {
 	// for section, dict := range dm.data {
 	// 	// log.Printf("inidata.DataMap.ParseBytes() | section: %q | dict: %q\n", section, dict)
 	// 	for k, v := range dict {
-	// 		log.Printf("inidata.DataMap.ParseBytes() | section: %q | %q: %q\n", section, k, v)
+	// 		log.Printf("inidata.DataMap.ParseBytes() | section: %-17q | %q: %q\n", section, k, v)
 	// 	}
 	// }
 
@@ -134,13 +136,36 @@ func (dm DataMap) ParseBytes(data []byte) error {
 }
 
 // SetSection sets the active section name
-func (dm DataMap) SetSection(s string) {
+func (dm *DataMap) SetSection(s string) {
 	dm.section = s
 }
 
+// String returns a JSON version of the DataMap
+func (dm *DataMap) String() string {
+	jsonStr := "{\n"
+
+	re := regexp.MustCompile(`^(true|false|t|f|yes|no|y|n|\d+|\d+\.\d+)$`)
+
+	for section, data := range dm.data {
+		jsonStr += fmt.Sprintf("\t%q: {\n", section)
+		for k, v := range data {
+			// log.Printf("inidata.DataMap.String() | section: %q | %q: %q\n", section, k, v)
+			if re.MatchString(v) {
+				jsonStr += fmt.Sprintf("\t\t%q: %s,\n", k, v)
+			} else {
+				jsonStr += fmt.Sprintf("\t\t%q: %q,\n", k, v)
+			}
+		}
+		jsonStr += "\t},\n"
+	}
+	jsonStr += "}"
+
+	return jsonStr
+}
+
 // NewDataMap returns a new DataMap
-func NewDataMap() DataMap {
-	return DataMap{
+func NewDataMap() *DataMap {
+	return &DataMap{
 		data:    make(map[string]map[string]string),
 		section: "GLOBAL",
 	}
