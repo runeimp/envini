@@ -10,8 +10,8 @@ import (
 
 const (
 	appName    = "EnvINI"
-	appLabel   = "EnvINI v1.0.0"
-	appVersion = "1.0.0"
+	appLabel   = "EnvINI v0.1.0"
+	appVersion = "0.1.0"
 	usage      = `%s
 
 USAGE: %s [OPTIONS] INIFILE
@@ -37,6 +37,9 @@ var config struct {
 		FloatTest float32 `ini:"float_test"`
 		TheAnswer uint8   `ini:"the_answer" env:"THE_ANSWER"`
 	} `ini:"Book of Numbers"`
+	// TruthOrDate struct {
+	// 	JSONBoolean bool `ini:"json_boolean"`
+	// }
 }
 
 func main() {
@@ -66,6 +69,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%s as JSON:\n%s\n", configPath, jsonStr)
+	// fmt.Printf("config.TruthOrDate.The_Answer: %t\n", config.TruthOrDate.The_Answer)
 	// fmt.Printf("config.LuckyAgent: %.3f\n", config.LuckyAgent)
 	// fmt.Printf("config.ProjectName: %q\n", config.ProjectName)
 	// fmt.Printf("config.SecondBool: %t\n", config.SecondBool)

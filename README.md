@@ -1,7 +1,7 @@
 EnvINI
 ======
 
-A small and simple Go configuration library.
+A small and simple Go configuration library. It is also a command line tool that reviews an INI file and outputs it's contents as JSON to better understand what your config struct should expect
 
 * Reads INI file for config
 * Checks Environment Variables for system overrides to the config
@@ -26,7 +26,7 @@ Features
 		* [ ] Keeps comments
 		* [ ] Keeps line order
 * [ ] Parse multi-line text values
-* [ ] Support alternate data formats that are INI File like
+* [ ] Support alternate data layouts
 	* [ ] Support alternate key value delimiters such as `:` instead of just `=`
 	* [ ] Support alternate record delimiters such as `\t` or `|` instead of just `\n` or `\r\n`
 	* [ ] SUpport alternate section delimiters
@@ -35,7 +35,20 @@ Features
 * [ ] Support `interface{}` value types
 * [ ] Support `rune` value types
 * [ ] Support nested sections in INI files
+* [ ] Support setting of acceptable values for `bool` fields
 
+
+Conversions
+-----------
+
+EnvINI will try to convert the values in a UTF-8/ASCII encoded INI text file or UTF-8/ASCII encoded `[]byte` to matches the fields of the target config struct. If there is an error from say trying to assign `256` to a `uint8` or `-1` to a `uint` the error will be returned. For `bool` fields in a target struct EnvINI will convert the following INI values as shown:
+
+| INI Value          | Go Value |
+| :-------:          | :------: |
+| true, t, yes, y, 1 | `true`   |
+| false, f, no, n, 0 | `false`  |
+
+This will be adjustable in the future.
 
 
 Articles & Reference
