@@ -2,6 +2,7 @@ PROJECT_NAME := "EnvINI"
 CLI_NAME := "envini"
 
 alias arc := archive
+alias ver := version
 
 set dotenv-load := false
 
@@ -90,3 +91,6 @@ _term-wipe:
 		clear
 	fi
 
+# Display the command line tool version
+@version:
+	cat ./cmd/envini/main.go | grep -F appVersion | cut -d'"' -f2

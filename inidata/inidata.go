@@ -148,13 +148,19 @@ func (dm *DataMap) SetSection(s string) {
 func (dm *DataMap) String() string {
 	jsonStr := "{\n"
 
-	re := regexp.MustCompile(`^(true|false|t|f|yes|no|y|n|\d+|\d+\.\d+)$`)
+	re := regexp.MustCompile(`(?i)^(true|false|t|f|yes|no|y|n|\d+|\d+\.\d+)$`)
 
 	for section, data := range dm.data {
 		jsonStr += fmt.Sprintf("\t%q: {\n", section)
 		for k, v := range data {
 			// log.Printf("inidata.DataMap.String() | section: %q | %q: %q\n", section, k, v)
 			if re.MatchString(v) {
+				switch strings.ToLower(v) {
+				case "true", "t", "yes", "y", "1":
+					v = "true"
+				case "false", "f", "no", "n", "0":
+					v = "false"
+				}
 				jsonStr += fmt.Sprintf("\t\t%q: %s,\n", k, v)
 			} else {
 				jsonStr += fmt.Sprintf("\t\t%q: %q,\n", k, v)
