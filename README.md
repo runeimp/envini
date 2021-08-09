@@ -1,5 +1,5 @@
-EnvINI
-======
+EnvINI v0.1.0
+=============
 
 A small and simple Go configuration library. It is also a command line tool that reviews an INI file and outputs it's contents as JSON to better understand what your config struct should expect
 
