@@ -28,43 +28,43 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
-// var dataMap map[string]map[string]string
 var (
 	dataMap              *inidata.DataMap
+	dataPath             string
 	ErrorValueUnsettable = errors.New("reflect.Value unsettable")
 	ErrorValueInvalid    = errors.New("reflect.Value invalid")
 )
 
 func configWalker(section string, config interface{}) (err error) {
-	log.Printf("EnvINI.configWalker()  | -Call-  | section: %q\n", section)
-	reflectType := reflect.TypeOf(config).Elem()
+	// log.Printf("EnvINI.configWalker()  | -Call-  | section: %q\n", section)
+	rt := reflect.TypeOf(config).Elem()
 	rv := reflect.ValueOf(config) // reflect.Value
-	reflectValue := rv.Elem()
+	rvE := rv.Elem()
 
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(config)}
 	}
 
-	log.Printf("EnvINI.configWalker()  | rv.Kind(): %s           | rv.IsValid(): %t\n", rv.Kind(), rv.IsValid())
+	// log.Printf("EnvINI.configWalker()  | rv.Kind(): %-16s | rv.IsValid(): %t\n", rv.Kind(), rv.IsValid())
 	// log.Printf("EnvINI.configWalker()  | rv.Interface(): %#v\n", rv.Interface())
-	log.Printf("EnvINI.configWalker()  | reflectType.Kind(): %s | reflectValue.Kind(): %s | reflectValue.IsValid(): %t\n", reflectType.Kind(), reflectValue.Kind(), reflectValue.IsValid())
-	log.Printf("EnvINI.configWalker()  | reflectValue.Interface(): %#v\n", reflectValue.Interface())
+	// log.Printf("EnvINI.configWalker()  | rt.Kind(): %-16s | rvE.Kind(): %-11s | rvE.IsValid(): %t\n", rt.Kind(), rvE.Kind(), rvE.IsValid())
+	// log.Printf("EnvINI.configWalker()  | rvE.Interface(): %#v\n", rvE.Interface())
 
-	for i := 0; i < reflectType.NumField(); i++ {
-		fieldName := reflectType.Field(i).Name                // Struct field name
-		tagEnv := reflectType.Field(i).Tag.Get("env")         // Go struct tagINI value for the "ini" key
-		tagINI := reflectType.Field(i).Tag.Get("ini")         // Go struct tagINI value for the "ini" key
-		tagDefault := reflectType.Field(i).Tag.Get("default") // Go struct tagINI value for the "default" key
-		fieldType := reflectValue.Field(i).Type()             // Go value type
-		// fieldInterface := reflectValue.Field(i).Interface() // Actual field value
+	for i := 0; i < rt.NumField(); i++ {
+		fieldName := rt.Field(i).Name                // Struct field name
+		tagEnv := rt.Field(i).Tag.Get("env")         // Go struct tagINI value for the "ini" key
+		tagINI := rt.Field(i).Tag.Get("ini")         // Go struct tagINI value for the "ini" key
+		tagDefault := rt.Field(i).Tag.Get("default") // Go struct tagINI value for the "default" key
+		fieldType := rvE.Field(i).Type()             // Go value type
+		// fieldInterface := rvE.Field(i).Interface() // Actual field value
 
-		log.Printf("EnvINI.configWalker()  | fieldName: %-13q | Kind: %-7s | tagEnv: %-14q | tagINI: %q | tagDefault: %q\n", fieldName, fieldType.Kind(), tagEnv, tagINI, tagDefault)
+		// log.Printf("EnvINI.configWalker()  | fieldName: %-16q | Kind: %-17s | tagEnv: %-14q | tagINI: %q | tagDefault: %q\n", fieldName, fieldType.Kind(), tagEnv, tagINI, tagDefault)
 
 		if fieldType.Kind() == reflect.Struct {
-			v := reflectValue.FieldByName(fieldName)
-			log.Printf("EnvINI.configWalker()  | Struct  | v.IsValid(): %t\n", v.IsValid())
+			v := rvE.FieldByName(fieldName)
+			// log.Printf("EnvINI.configWalker()  | Struct  | v.IsValid(): %t\n", v.IsValid())
 			if v.IsValid() {
-				err = configWalker(fieldName, v.Addr().Interface())
+				err = configWalker(tagINI, v.Addr().Interface())
 			}
 			section = tagINI
 			continue
@@ -74,15 +74,14 @@ func configWalker(section string, config interface{}) (err error) {
 			panic(errors.New("fieldName is zero length"))
 		}
 
-		dataValue, ok := dataMap.GetKey(tagINI)
+		dataValue, ok := dataMap.GetKey(tagINI, section)
+		// log.Printf("EnvINI.configWalker()  | key: %-22q | section: %-14q | ok: %-19t | dataValue: %q\n", tagINI, section, ok, dataValue)
 		if ok == false && len(tagDefault) > 0 {
-			v := reflectValue.FieldByName(fieldName)
+			v := rvE.FieldByName(fieldName)
 			err = setFieldValue(v, fieldName, tagEnv, tagDefault)
 		} else if ok || fieldName == "" && len(tagINI) > 0 {
-			log.Printf("EnvINI.configWalker()  | fieldName: %-13q | tagINI: %q\n", fieldName, tagINI)
-			v := reflectValue.FieldByName(fieldName)
-			// log.Printf("EnvINI.configWalker() | fieldName: %-13q | fieldInterface: %#-9v | dataValue: %#-9v | %-7s | v.IsValid(): %t\n", fieldName, fieldInterface, dataValue, fieldType.Kind(), v.IsValid())
-			// log.Printf("EnvINI.configWalker() | fieldName: %-12s | dataValue: %#-9v | %-7s | v.IsValid(): %t\n", fieldName, dataValue, fieldType.Kind(), v.IsValid())
+			// log.Printf("EnvINI.configWalker()  | fieldName: %-16q | tagINI: %q\n", fieldName, tagINI)
+			v := rvE.FieldByName(fieldName)
 			err = setFieldValue(v, fieldName, tagEnv, dataValue)
 		}
 
@@ -91,23 +90,40 @@ func configWalker(section string, config interface{}) (err error) {
 			return err
 		}
 	}
-	log.Printf("EnvINI.configWalker()  | err: %v\n", err)
+
+	if err != nil {
+		log.Printf("EnvINI.configWalker()  | err: %v\n", err)
+	}
 	return err
 }
 
+// GetConfig takes a string reference to an config file (INI file) and a pointer to a struct and populates the struct with data from the config file
 func GetConfig(configPath string, config interface{}) error {
-	log.Printf("EnvINI.GetConfig() | configPath: %q | config: %v\n", configPath, config)
+	// log.Printf("EnvINI.GetConfig() | configPath: %q | config: %v\n", configPath, config)
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	dataPath = configPath
 
 	if err := Unmarshal(data, config); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func GetConfigJSON(configPath string) (jsonStr string, err error) {
+
+	if len(dataPath) == 0 {
+		err = errors.New("you must call envini.GetConfig() first")
+	}
+	if err == nil {
+		jsonStr = dataMap.String()
+	}
+
+	return jsonStr, err
 }
 
 func stringIsTruthy(s string) bool {
@@ -119,29 +135,21 @@ func stringIsTruthy(s string) bool {
 	return false
 }
 
-func reflectValueCheck(v reflect.Value) error {
+func setFieldValue(v reflect.Value, fieldName, envName, dataValue string) (err error) {
+	// log.Printf("EnvINI.setFieldValue() | fieldName: %-16q | envName: %-14q | dataValue: %q\n", fieldName, envName, dataValue)
+	if len(envName) > 0 {
+		env := os.Getenv(envName)
+		if len(env) > 0 {
+			dataValue = env
+		}
+		// log.Printf("EnvINI.setFieldValue() | fieldName: %-16q | env: %-15q    | dataValue: %q\n", fieldName, env, dataValue)
+	}
+
 	if v.IsValid() == false {
 		return ErrorValueInvalid
 	}
 	if v.CanSet() == false {
 		return ErrorValueUnsettable
-	}
-	return nil
-}
-
-func setFieldValue(v reflect.Value, fieldName, tagEnv, dataValue string) (err error) {
-	log.Printf("EnvINI.setFieldValue() | fieldName: %-13q | tagEnv: %-14q | dataValue: %q\n", fieldName, tagEnv, dataValue)
-	if len(tagEnv) > 0 {
-		env := os.Getenv(tagEnv)
-		if len(env) > 0 {
-			dataValue = env
-		}
-		log.Printf("EnvINI.setFieldValue() | fieldName: %-13q | env: %q    | dataValue: %q\n", fieldName, env, dataValue)
-	}
-
-	err = reflectValueCheck(v)
-	if err != nil {
-		return err
 	}
 
 	switch v.Type().Kind() {
@@ -160,20 +168,20 @@ func setFieldValue(v reflect.Value, fieldName, tagEnv, dataValue string) (err er
 		}
 		v.SetInt(intValue)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		intValue, err := strconv.ParseUint(dataValue, 10, 64)
-		if err == nil {
+		uintValue, err := strconv.ParseUint(dataValue, 10, 64)
+		if err != nil {
 			return err
 		}
-		v.SetUint(intValue)
+		v.SetUint(uintValue)
 	case reflect.String:
 		v.SetString(dataValue)
 	case reflect.Ptr:
-		log.Printf("EnvINI.setFieldValue() | Pointer | v.IsValid(): %t\n", v.IsValid())
+		// log.Printf("EnvINI.setFieldValue() | Pointer | v.IsValid(): %t\n", v.IsValid())
 		// v.SetString(dataValue)
 		// reflectValue
 		t := reflect.TypeOf(v).Elem() // Dereference the interface{} to a reflect.Value
 		err = configWalker(fieldName, &t)
-	default: // array, slice, struct?
+	default: // array, slice?
 		// rv := reflect.ValueOf(v).Elem()
 		// vv := v.Interface()
 		// vv := v.Elem()
@@ -183,24 +191,19 @@ func setFieldValue(v reflect.Value, fieldName, tagEnv, dataValue string) (err er
 	return err
 }
 
+// Unmarshal takes byte slice (ostensibly raw data from an INI file) and a pointer to a struct and populates the struct with the data from the byte slice
 func Unmarshal(data []byte, config interface{}) (err error) {
 	// log.Printf("EnvINI.Unmarshal() | data: %q | config: %#v\n", data, config)
 
-	// dataMap = bytesToDataMap(data)
 	dataMap = inidata.NewDataMap()
 	err = dataMap.ParseBytes(data)
 	if err != nil {
-		log.Printf("EnvINI.Unmarshal() | err: %s\n", err.Error())
 		return err
 	}
 
-	log.Printf("EnvINI.Unmarshal() | dataMap: %s\n", dataMap)
+	// log.Printf("EnvINI.Unmarshal() | dataMap: %s\n", dataMap)
 
 	err = configWalker("GLOBAL", config)
-	log.Printf("EnvINI.Unmarshal() | configWalker() | err: %q\n", err)
-	if err == nil {
-		log.Printf("EnvINI.Unmarshal() | config: %#v\n", config)
-	}
 
 	return err
 }

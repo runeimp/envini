@@ -57,7 +57,8 @@ distro:
 run +args='':
 	#!/bin/sh
 	just _term-wipe
-	PROJECT_NAME=EnvINI go run ./cmd/envini/main.go {{args}}
+	#PROJECT_NAME=EnvINI THE_ANSWER=69 go run ./cmd/envini/main.go {{args}}
+	go run ./cmd/envini/main.go {{args}}
 
 
 # Run a test

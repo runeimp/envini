@@ -34,13 +34,15 @@ func (dm *DataMap) addKV(k, v string) {
 func (dm *DataMap) GetKey(args ...string) (v string, ok bool) {
 	section := "GLOBAL"
 	key := ""
+	// log.Printf("inidata.DataMap.GetKey()  | args: %q\n", args)
 	if len(args) > 0 {
 		key = args[0]
 		if len(args) > 1 {
 			dm.section = args[1]
 			section = args[1]
 		}
-		v, ok = dm.data[dm.section][key]
+		v, ok = dm.data[section][key]
+		// log.Printf("inidata.DataMap.GetKey()  | section: %-15q | dm.data[%q]: %q\n", section, section, dm.data[section])
 		if ok == false && section != "GLOBAL" {
 			v, ok = dm.data["GLOBAL"][key]
 		}
@@ -100,6 +102,8 @@ func (dm *DataMap) ParseBytes(data []byte) error {
 				}
 			}
 			line = ""
+		case '\r':
+			// Ignore
 		default:
 			line += string(r)
 			if i+runeWidth == dataLength { // We've reached the end of the data and it doesn't end with a newline
@@ -156,9 +160,9 @@ func (dm *DataMap) String() string {
 				jsonStr += fmt.Sprintf("\t\t%q: %q,\n", k, v)
 			}
 		}
-		jsonStr += "\t},\n"
+		jsonStr = jsonStr[:len(jsonStr)-2] + "\n\t},\n"
 	}
-	jsonStr += "}"
+	jsonStr = jsonStr[:len(jsonStr)-2] + "\n}"
 
 	return jsonStr
 }
